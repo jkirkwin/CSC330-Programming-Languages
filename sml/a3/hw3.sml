@@ -2,6 +2,8 @@
 
 (*  Version 1.0 *)
 
+(* Jamie Kirkwin, CSC 330, Assignment 3 *)
+
 exception NoAnswer
 
 datatype pattern = Wildcard
@@ -82,12 +84,19 @@ val longest_capitalized = longest_string3 o only_capitals
 (* Question 6 *)
 val rev_string = implode o rev o explode
 
-(* Question 7 *)
-(* apply f to xs from left to right and return the first value for which it returns non-NONE *)
+(* Question 7 
+Write a function first_answer that has type (’a -> ’b option) -> ’a list -> ’b.
+The first argument should be applied to elements of the second argument in order, until
+the first time it returns SOME v for some v and then v is the result of the call
+to first_answer. 
+If the first argument returns NONE for all list elements, then first_answer should raise
+the exception NoAnswer. 
+*)
 fun first_answer f xs = 
   case List.filter (isSome o f) xs of 
       [] => raise NoAnswer
-    | x::xs' => x 
+    | x::xs' => valOf (f x) (* This is guaranteed to be same due to the filter. *)
+
 (* Question 8
 Write a function all_answers of type (’a -> ’b list option) -> ’a list -> ’b list
 option (notice the 2 arguments are curried).
@@ -170,8 +179,12 @@ fun match(v, p) =
       (* todo unsure if we need to have a binding s, [list of bindings]  or not *)
     | _ => NONE
 
-(* Question 12 *)
+(* Question 12 
+Write a function first_match that takes a value and a list of patterns and returns a 
+(string * valu) list option
+    NONE if no pattern in the list matches or 
+    SOME lst where lst is the list of bindings for the first pattern in the list that matches. 
+*)
 fun first_match v ps =
-  let val f = fn p => match(v, p) in
-    SOME (first_answer f ps) handle NoAnswer => NONE 
-  end
+  SOME (first_answer (fn p => match(v,p)) ps) 
+  handle NoAnswer => NONE
