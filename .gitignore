@@ -1,2 +1,2 @@
-racket/compiled
+racket/**/compiled
 *.bak
