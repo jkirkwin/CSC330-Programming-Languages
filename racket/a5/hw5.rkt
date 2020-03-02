@@ -22,11 +22,19 @@
 
 ;; Problem A
 
-;; CHANGE (put your solutions here)
+; todo unsure how to represent an empty list in mupl
 (define (mupllist->racketlist lst)
-  "CHANGE")
-(define (racketlist->mupllist lst)
- "CHANGE")
+  (if (aunit? lst)
+      '() 
+      (let* ([tail (apair-e2 lst)]
+             [head (apair-e1 lst)]
+             [headprime (if (apair? head) (mupllist->racketlist head) head)])
+        (if (aunit? tail) (list headprime)  
+            (cons headprime (mupllist->racketlist tail))))))
+
+(define (racketlist->mupllist lst) 
+  (if (null? lst) (aunit) ; unsure how to do empty list here
+    (apair (car lst) (racketlist->mupllist (cdr lst)))))
 
 ;; Problem B
 
@@ -44,6 +52,7 @@
 (define (eval-under-env e env)
   (cond [(var? e)
          (envlookup env (var-string e))]
+        
         [(add? e)
          (let ([v1 (eval-under-env (add-e1 e) env)]
                [v2 (eval-under-env (add-e2 e) env)])
@@ -52,8 +61,68 @@
                (int (+ (int-num v1)
                        (int-num v2)))
                (error "MUPL addition applied to non-number")))]
-        ;; "CHANGE" add more cases here
-        ;; one for each type of expression
+        [(int? e) e]        
+
+        [(ifgreater? e) 
+         (let ([g (eval-under-env (ifgreater-e1 e) env)]
+               [l (eval-under-env (ifgreater-e2 e) env)])
+           (if (not (and (int? g) (int? l))) 
+             (error "MUPL comparison applied to non-integer")
+             (if (> (int-num g) (int-num l)) 
+               (eval-under-env (ifgreater-e3 e) env)
+               (eval-under-env (ifgreater-e4 e) env))))]
+
+         [(fun? e) (closure env e)]
+
+         [(call? e)
+          (let (
+                [clsr (eval-under-env (call-funexp e) env)]
+                [actual (eval-under-env (call-actual e) env)])
+            (if (closure? clsr)
+                (let* ([f (closure-fun clsr)]
+                       [f-env (closure-env clsr)]
+                       [f-name (fun-nameopt f)]
+                       [f-formal (fun-formal f)]
+                       [f-body (fun-body f)]
+                       ; add function name to env
+                       ; add param to env
+                       [f-name-binding (if f-name (cons f-name clsr) #f)]
+                       [f-env (if f-name-binding (cons f-name-binding f-env) f-env)]
+                       [param-binding (cons f-formal actual)]
+                       [f-env (cons param-binding f-env)])
+                  (eval-under-env f-body f-env))                 
+                (error "call requires a MUPL function")))]
+             
+         [(mlet? e) 
+          (let ([var (mlet-var e)] 
+                [exp (mlet-e e)] 
+                [body (mlet-body e)])
+            (if (not (string? var)) 
+              (error "MUPL mlet requires a string variable name")
+              (let* ([binding (cons var (eval-under-env exp env))]
+                     [newenv (cons binding env)])
+                (eval-under-env body newenv))))]
+         [(apair? e) 
+          (apair 
+            (eval-under-env (apair-e1 e) env) 
+            (eval-under-env (apair-e2 e) env))]
+
+         [(fst? e) 
+          (define p (eval-under-env (fst-e e) env))
+          (if (apair? p) 
+            (eval-under-env (apair-e1 p) env)
+            (error "fst requires a MUPL pair"))]
+
+         [(snd? e) 
+          (define p (eval-under-env (snd-e e) env))
+          (if (apair? p) 
+            (eval-under-env (apair-e2 p) env)
+            (error "snd requires a MUPL pair"))]
+
+        [(aunit? e) e]
+
+        [(isaunit? e) (if (aunit? (eval-under-env (isaunit-e e) env)) (int 1) (int 0))]
+
         [#t (error (format "bad MUPL expression: ~v" e))]))
 
 ;; Do NOT change
@@ -62,11 +131,16 @@
 
 ;; Problem C
 
-(define (ifaunit e1 e2 e3) "CHANGE")
+(define (ifaunit e1 e2 e3)
+  (ifgreater (isaunit e1) (int 0) e2 e3))
 
-(define (mlet* lstlst e2) "CHANGE")
+(define (mlet* pairs e)
+  (if (null? pairs)
+      e
+      (mlet (caar pairs) (cdar pairs) (mlet* (cdr pairs) e))))
 
-(define (ifeq e1 e2 e3 e4) "CHANGE")
+(define (ifeq e1 e2 e3 e4) ; e3 if e1 == e2 (both ints), else e4
+  (ifgreater e1 e2 e4 (ifgreater e2 e1 e4 e3)))
 
 ;; Problem D
 
