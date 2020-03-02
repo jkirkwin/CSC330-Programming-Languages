@@ -21,20 +21,22 @@
 (struct closure (env fun) #:transparent)
 
 ;; Problem A
-
-; todo unsure how to represent an empty list in mupl
 (define (mupllist->racketlist lst)
   (if (aunit? lst)
-      '() 
-      (let* ([tail (apair-e2 lst)]
-             [head (apair-e1 lst)]
-             [headprime (if (apair? head) (mupllist->racketlist head) head)])
-        (if (aunit? tail) (list headprime)  
-            (cons headprime (mupllist->racketlist tail))))))
+      null
+      (if (apair? lst)
+          (let* ([muplhead (apair-e1 lst)]
+                [mupltail (apair-e2 lst)]
+                [head (if (apair? muplhead) (mupllist->racketlist muplhead) muplhead)]
+                [tail (mupllist->racketlist mupltail)])
+            (cons head tail))
+          (error "not a MUPL list"))))
 
-(define (racketlist->mupllist lst) 
-  (if (null? lst) (aunit) ; unsure how to do empty list here
-    (apair (car lst) (racketlist->mupllist (cdr lst)))))
+(define (racketlist->mupllist lst)
+  (if (null? lst)
+      (aunit)
+      (let ([head (if (list? (car lst)) (racketlist->mupllist (car lst)) (car lst))])
+        (apair head (racketlist->mupllist (cdr lst))))))
 
 ;; Problem B
 
@@ -144,21 +146,15 @@
 
 ;; Problem D
 
-(define mupl-map "CHANGE")
-;; this binding is a bit tricky. it must return a function.
-;; the first two lines should be something like this:
-;;
-;;   (fun "mupl-map" "f"    ;; it is  function "mupl-map" that takes a function f
-;;       (fun #f "lst"      ;; and it returns an anonymous function
-;;          ...
-;;
-;; also remember that we can only call functions with one parameter, but
-;; because they are curried instead of
-;;    (call funexp1 funexp2 exp3)
-;; we do
-;;    (call (call funexp1 funexp2) exp3)
-;; 
+(define mupl-map
+  (fun "mupl-map" "f" ;
+       (fun "g" "lst"
+            (ifaunit (var "lst")
+                     (aunit)
+                     (apair (call (var "f") (fst (var "lst"))) (call (var "g") (snd (var "lst"))))))))
 
 (define mupl-mapAddN
-  (mlet "map" mupl-map
-        "CHANGE (notice map is now in MUPL scope)"))
+  (fun "#f" "n"
+       (mlet "map" mupl-map
+             (call (var "map")
+                   (fun #f "i" (add (var "i") (var "n")))))))
