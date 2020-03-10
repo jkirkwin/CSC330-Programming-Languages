@@ -4,15 +4,16 @@
 # so do not modify the other files as
 # part of your solution.
 
-#########################################################
-# TODO - Add cheat piece and associated functionality
-#########################################################
-
 class MyPiece < Piece
 
   # class method to choose the next piece randomly
-  def self.next_piece (board)
+  def self.next_piece(board)
     MyPiece.new(All_My_Pieces.sample, board)
+  end
+
+  # class method to create a single-cell "cheat" piece
+  def self.cheat_piece(board)
+    MyPiece.new([[[0, 0]]], board)
   end
 
   All_My_Pieces = All_Pieces + 
@@ -37,11 +38,18 @@ class MyBoard < Board
     @score = 0
     @game = game
     @delay = 500
+    @cheated = false
   end
 
-  # Gets the next piece from the enhanced pool
+  # Gets the next piece from the enhanced pool. May be a "cheat" piece if the 
+  # cheat flag is set. Unsets the cheat flag. 
   def next_piece
-    @current_block = MyPiece.next_piece(self)
+    if @cheated
+      @current_block = MyPiece.cheat_piece(self)
+      @cheated = false
+    else
+      @current_block = MyPiece.next_piece(self)
+    end
     @current_pos = nil
   end
 
@@ -62,11 +70,25 @@ class MyBoard < Board
     @delay = [@delay - 2, 80].max
   end
 
+  # rotates the current piece 180 degrees
   def flip
     if !game_over? and @game.is_running?
       @current_block.move(0, 0, 2)
     end
     draw
+  end
+
+  def cheated?
+    @cheated
+  end
+
+  # Reduces the score by 100 and ensures the next piece will be a "cheat"
+  # piece. No effect if the cheated flag is set or if score is less than 100.
+  def try_cheat
+    if !cheated? && @score >= 100
+      @score -= 100
+      @cheated = true
+    end
   end
 end
 
@@ -81,12 +103,15 @@ class MyTetris < Tetris
     @board.draw
   end
 
-  # Extends parent class' bindings as specified
+  # Extends parent class' bindings as required by the spec
   def key_bindings      
     # Add vanilla bindings
     super
 
     # Add 180 degree rotation binding
     @root.bind('u', proc { @board.flip })
-    end
+
+    # Add binding to use cheat mechanism
+    @root.bind('c', proc { @board.try_cheat })
+  end
 end
