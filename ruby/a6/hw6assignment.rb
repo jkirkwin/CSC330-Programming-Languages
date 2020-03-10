@@ -5,20 +5,27 @@
 # part of your solution.
 
 class MyPiece < Piece
-  # The constant All_My_Pieces should be declared here:
-
-  # Your Enhancements here
 
 end
 
 class MyBoard < Board
-  # Your Enhancements here:
-
+  
 end
 
 class MyTetris < Tetris
-  # Your Enhancements here:
 
+  # Extends parent class' bindings as specified
+  def key_bindings      
+    # Add vanilla bindings
+    super
+
+    # Add 180 degree rotation binding
+    flip = proc {
+      @board.rotate_clockwise 
+      @board.rotate_clockwise
+    } 
+    @root.bind('u', flip)
+    end
 end
 
 
