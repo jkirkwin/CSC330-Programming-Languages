@@ -9,7 +9,7 @@
                       (shifts added by you)
 *)
 datatype geom_exp = 
-           NoPoints
+    NoPoints
 	 | Point of real * real (* represents point (x,y) *)
 	 | Line of real * real (* represents line (slope, intercept) *)
 	 | VerticalLine of real (* x value *)
@@ -17,7 +17,7 @@ datatype geom_exp =
 	 | Intersect of geom_exp * geom_exp (* intersection expression *)
 	 | Let of string * geom_exp * geom_exp (* let s = e1 in e2 *)
 	 | Var of string
-(* CHANGE add shifts for expressions of the form Shift(deltaX, deltaY, exp *)
+	 | Shift of real * real * geom_exp
 
 exception BadProgram of string
 exception Impossible of string
@@ -29,6 +29,12 @@ val epsilon = 0.00001
 
 fun real_close (r1,r2) = 
     (Real.abs (r1 - r2)) < epsilon
+
+fun less_than (r1, r2) =
+	r1 < (r2 - epsilon)
+
+fun greater_than (r1, r2) =
+	less_than(r2, r1)
 
 (* notice curried *)
 fun real_close_point (x1,y1) (x2,y2) = 
@@ -188,11 +194,33 @@ fun eval_prog (e,env) =
       | VerticalLine _ => e
       | LineSegment _  => e
       | Var s => 
-	(case List.find (fn (s2,v) => s=s2) env of
-	     NONE => raise BadProgram("var not found: " ^ s)
-	   | SOME (_,v) => v)
+			(case List.find (fn (s2,v) => s=s2) env of
+	        	NONE => raise BadProgram("var not found: " ^ s)
+	      	  | SOME (_,v) => v)
       | Let(s,e1,e2) => eval_prog (e2, ((s, eval_prog(e1,env)) :: env))
       | Intersect(e1,e2) => intersect(eval_prog(e1,env), eval_prog(e2, env))
-(* CHANGE: Add a case for Shift expressions *)
+	  | Shift(dx, dy, e1) => 
+	  		case eval_prog(e1, env) of
+				NoPoints => e1 (* TODO this might not make sense. See what the tests say *)
+			  | Point(x, y) => Point(x + dx, y + dy)
+			  | Line(slope, intercept) => Line(slope, intercept + dy - dx * slope)
+			  | VerticalLine(x) => VerticalLine(x + dx)
+			  | LineSegment(x1, y1, x2, y2) => LineSegment(x1+dx, y1+dy, x2+dx, y2+dy)
+			  | _ => e1
 
-(* CHANGE: Add function preprocess_prog of type geom_exp -> geom_exp *)
+fun preprocess_prog e =
+	case e of
+		NoPoints => e
+	  | Point _ => e
+	  | Line _ => e
+	  | VerticalLine _ => e
+	  | LineSegment(x1, y1, x2, y2) => 
+	  		if real_close_point (x1, y1) (x2, y2) 
+				then Point(x1, y1)
+			else if less_than(x2, x1) orelse (real_close(x1, x2) andalso less_than(y2, y1)) 
+				then LineSegment(x2, y2, x1, y1)
+			else e
+	  | Var _ => e
+	  | Let (s, e1, e2) => Let(s, preprocess_prog(e1), preprocess_prog(e2))
+	  | Intersect(e1, e2) => Intersect(preprocess_prog(e1), preprocess_prog(e2))
+	  | Shift(dx, dy, e1) => Shift(dx, dy, preprocess_prog(e1))
